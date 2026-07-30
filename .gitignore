@@ -1,0 +1,56 @@
+ --- Databases (fixed: db is at repo root, not backend/, per the recent commit) ---
+eventData.db
+eventData.db-journal
+backend/eventData.db
+backend/eventData.db-journal
+backend/__pycache__/
+backend/models.py
+ 
+model/testData/images
+model/testData/videos
+model/weights
+weights/
+model/inferenceScripts/result.jpg
+venv
+node_modules/
+*.bak
+*.pth
+*.pt
+!weights2/best.pt
+model/weights_maskrcnn/
+ 
+# Roboflow dataset exports (large image/label folders)
+My First Project*/
+*.zip
+ 
+# Extracted video frames / raw training photos
+output_100_frames/
+output_frames/
+frames_incline/
+frames*/
+*frames/
+ 
+# Local training run outputs (images, curves, results -- regenerable)
+runs/
+ 
+# --- NEW: source/training videos (leaked in as carrot_videos/, .MOV, .mp4) ---
+carrot_videos/
+*.mp4
+*.MOV
+*.mov
+*.avi
+ 
+# --- NEW: runtime detection snapshots (this is the ~3,000 file leak) ---
+# Confirm the exact path via SNAPSHOT_DIR in backend/settings.py and
+# update this pattern to match if it differs.
+foreign_material_*.jpg
+**/foreign_material_*.jpg
+model/inferenceScripts/snapshots/
+ 
+# Local environment files
+.env
+tflite_export_env/
+ 
+# OS-generated files
+.DS_Store
+Thumbs.db

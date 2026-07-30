@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Install this only when the backend runs on a Raspberry Pi and you plan
+# to use direct GPIO output for the solenoid.
+RPi.GPIO==0.7.1

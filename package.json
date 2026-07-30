@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \".\\.venv\\Scripts\\python.exe -m uvicorn backend.main:app --reload --port 8001\" \"npm run dev --prefix bolthouse-dashboard\""
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "concurrently": "^9.1.2",
+    "jsdom": "^29.0.2",
+    "vitest": "^4.1.5"
+  }
+}

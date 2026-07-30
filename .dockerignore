@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.coverage
+node_modules
+bolthouse-dashboard/node_modules
+dist
+bolthouse-dashboard/dist

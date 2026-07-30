@@ -1,0 +1,31 @@
+{
+  "buffer_length": 10,
+  "coils": {
+    "SOLENOID": 20
+  },
+  "discrete_inputs": {
+    "DETECTION": 20
+  },
+  "holding_registers": {
+    "OVERFLOW": 60,
+    "WATCH": 50,
+    "HEARTBEAT": 70
+  },
+  "holding_registers_many": [
+    {
+      "name": "LENGTHx10",
+      "address": 310,
+      "length": 10
+    },
+    {
+      "name": "BUFFER_FULL",
+      "address": 40,
+      "length": 10
+    },
+    {
+      "name": "EVENT_SEQUENCE",
+      "address": 320,
+      "length": 10
+    }
+  ]
+}

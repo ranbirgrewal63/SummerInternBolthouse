@@ -1,0 +1,8 @@
+{
+  "latency_ms": 175.0,
+  "distance_mm": 100.0,
+  "conveyor_speed_mm_per_s": 962.5,
+  "margin_ms": 40.0,
+  "min_pulse_ms": 150.0,
+  "merge_gap_ms": 40.0
+}

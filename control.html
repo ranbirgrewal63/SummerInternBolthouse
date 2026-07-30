@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bolthouse Camera Control</title>
+        <style>
+            body {font-family: Arial; text-align: center; padding: 50px; background: #1a1a1a; color: white;}
+            h1 {color: #22c55e;}
+            button {width: 200px; height: 80px; font-size: 24px; margin: 20px; border: none; border-radius: 15px; cursor: pointer;}
+            #start {background: #22c55e; color: white;}
+            #stop {background: #ef4444; color: white;}
+            #status { font-size: 18px; margin-top: 20px; }
+        </style>
+    </head>
+    <body>
+        <h1>Bolthouse Camera Control</h1>
+        <button id="start" onclick="startCamera()">Start Camera</button>
+        <button id="stop" onclick="stopCamera()">Stop Camera</button>
+        <p id="status">Ready</p>
+        <br>
+       <img id="feed" src="" width="100%" style="border-radius:10px"/>
+
+
+        <script>
+          async function startCamera() {
+              document.getElementById('status').innerText = 'Starting...';
+              await fetch('https://imposing-crewmate-vaseline.ngrok-free.dev/camera/start', {method: 'POST'});
+              document.getElementById('feed').src = 'https://imposing-crewmate-vaseline.ngrok-free.dev/video-feed';
+              document.getElementById('status').innerText = '✅ Camera Started';
+}
+            async function stopCamera() {
+                document.getElementById('status').innerText = 'Stopping...';
+                await fetch('https://imposing-crewmate-vaseline.ngrok-free.dev/camera/stop', {method: 'POST'});
+                document.getElementById('feed').src = '';
+                document.getElementById('status').innerText = 'Camera Stopped';
+}
+        </script>
+    </body>
+</html>

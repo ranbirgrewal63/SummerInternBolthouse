@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      EVENT_DB_PATH: /app/data/eventData.db
+      UPLOAD_DIR: /app/data/uploaded_images
+      SNAPSHOT_DIR: /app/data/snapshots
+    ports:
+      - "8001:8001"
+    volumes:
+      - backend_data:/app/data
+
+  frontend:
+    build:
+      context: ./bolthouse-dashboard
+      dockerfile: Dockerfile
+    environment:
+      VITE_API_BASE_URL: http://localhost:5050
+      VITE_API_PROXY_TARGET: http://backend:5050
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  backend_data:

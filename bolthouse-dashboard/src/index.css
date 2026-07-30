@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 220 15% 16%;
+    --foreground: 220 15% 85%;
+    --card: 220 15% 16%;
+    --card-foreground: 220 15% 85%;
+    --popover: 220 15% 16%;
+    --popover-foreground: 220 15% 85%;
+    --primary: 220 15% 85%;
+    --primary-foreground: 220 15% 16%;
+    --secondary: 220 15% 25%;
+    --secondary-foreground: 220 15% 85%;
+    --muted: 220 15% 25%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 220 15% 25%;
+    --accent-foreground: 220 15% 85%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 220 15% 85%;
+    --border: 220 15% 25%;
+    --input: 220 15% 25%;
+    --ring: 220 15% 85%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ==== Fix transparent ShadCN / Radix dropdowns and popovers ==== */
+
+/* Applies to Time Range dropdown */
+[data-radix-popper-content-wrapper],
+[data-radix-select-content] {
+  @apply bg-popover text-popover-foreground border-border rounded-lg shadow-lg;
+  background-color: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border: 1px solid hsl(var(--border));
+  backdrop-filter: none !important;
+}
+
+/* Applies to the date picker popover */
+[data-radix-popper-content-wrapper]>div,
+[data-radix-popover-content] {
+  @apply bg-popover text-popover-foreground border-border rounded-lg shadow-lg;
+  background-color: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border: 1px solid hsl(var(--border));
+}
+
+/* ✅ Removed the global button rule to prevent affecting other buttons */
+
+/* Optional: if dropdown text looks dim, brighten it */
+[data-radix-select-content] * {
+  color: hsl(var(--popover-foreground)) !important;
+}

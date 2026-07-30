@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Add the exact USB relay dependency here after the client confirms the
+# hardware model and Python driver/library it requires.
+#
+# Example placeholder only:
+# hidapi==0.14.0.post4

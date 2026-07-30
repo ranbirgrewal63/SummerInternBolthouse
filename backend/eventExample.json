@@ -1,0 +1,33 @@
+{
+    "eventId": "29310", 
+    "timestamp":"2025-06-08 17:12:33",
+    "cameraId":"cam_01",
+    "snapshot":"path/path2/image.jpg",
+    "model":"yolo_v11",
+    "detections":[
+        {
+            
+            "label":"root",
+            "confidence":0.6,
+            "boundingBox":{
+                "x1":120,
+                "y1":80,
+                "x2":240,
+                "y2":200
+            }
+        },
+        {
+            
+            "label":"aluminum",
+            "confidence":0.78,
+            "bounding_box":{
+                "x1":90,
+                "y1":50,
+                "x2":130,
+                "y2":100
+            }
+        }
+        ]
+    
+
+}

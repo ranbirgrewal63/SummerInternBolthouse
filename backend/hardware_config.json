@@ -1,0 +1,24 @@
+{
+  "mode": "direct",
+  "solenoid_backend": "null",
+  "gpio_pin": 22,
+  "gpio_active_high": false,
+  "usb_vendor_id": 5024,
+  "usb_product_id": 1503,
+  "usb_on_payload": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "usb_off_payload": [
+    0,
+    1,
+    2,
+    4
+  ],
+  "sim_host": "0.0.0.0",
+  "sim_port": 1502,
+  "plc_host": "127.0.0.1",
+  "plc_port": 502
+}
