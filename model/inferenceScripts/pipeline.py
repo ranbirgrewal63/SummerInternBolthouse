@@ -12,12 +12,10 @@ from backend.settings import PROJECT_ROOT, SNAPSHOT_DIR, ensure_runtime_dirs, st
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BYTETRACK_CFG = os.path.join(BASE_DIR, "..", "bytetrack.yaml")
 DETECTION_MODEL_PATH = os.path.join(PROJECT_ROOT, "weights2", "best.pt")
-SEGMENTATION_MODEL_PATH = os.path.join(PROJECT_ROOT, "weight_seg", "best.pt")
 
 LOG_COOLDOWN = 5
 CARROT_LABEL = "carrot"
 DETECTION_CONFIDENCE = 0.35
-SEGMENTATION_CONFIDENCE = 0.35
 MASK_OVERLAY_ALPHA = 0.25
 CARROT_COLOR = (34, 197, 94)
 DEBRIS_COLOR = (68, 68, 239)
@@ -40,13 +38,15 @@ ensure_runtime_dirs()
 
 class ForeignMaterialTracker:
     def __init__(self):
+        # NOTE: previously this class also loaded a separate segmentation
+        # model (weight_seg/best.pt) just to detect carrots, and ran BOTH
+        # models on every single frame. That model was an untested
+        # placeholder trained on unrelated data, and running two models
+        # per frame roughly doubled processing time -- a major source of
+        # dashboard lag. The main detection model already knows both
+        # "Carrot" and "foreign object", so we just use that one model
+        # for everything now.
         self.model = YOLO(DETECTION_MODEL_PATH)
-        self.seg_model = YOLO(SEGMENTATION_MODEL_PATH)
-        self.debris_class_ids = self._resolve_class_ids(self.model.names, exclude_labels={CARROT_LABEL})
-        self.segmentation_class_ids = self._resolve_class_ids(
-            self.seg_model.names,
-            include_labels={CARROT_LABEL},
-        )
         self.reset_tracking_state()
 
     def reset_tracking_state(self):
@@ -286,7 +286,7 @@ class ForeignMaterialTracker:
             "timestamp": timestamp,
             "cameraId": "test-camera-1",
             "snapshot": snapshot_path,
-            "model": "yolo26n-seg.pt",
+            "model": "best.pt",
             "detections": payload_detections,
             "shouldLog": True,
         }
@@ -299,7 +299,7 @@ class ForeignMaterialTracker:
             "timestamp": timestamp,
             "cameraId": "test-camera-1",
             "snapshot": "",
-            "model": "yolo26n-seg.pt",
+            "model": "best.pt",
             "detections": [self._clone_detection(detection)],
             "shouldLog": True,
         }
@@ -459,6 +459,13 @@ class ForeignMaterialTracker:
         return log_events
 
     def process_frame(self, frame, use_delayed_snapshot=False, include_carrots_overlay=False):
+        # NOTE: single model call now, detecting BOTH Carrot and foreign
+        # object in one pass -- no more classes= filter excluding carrot,
+        # and no more separate segmentation model call. This is the fix
+        # for both the dashboard lag (was running 2 models/frame) and for
+        # carrot tracking (carrots now get real track IDs from ByteTrack,
+        # instead of coming from the segmentation model with no track ID
+        # at all, which meant carrot counting was silently broken before).
         results = self.model.track(
             frame,
             persist=True,
@@ -466,13 +473,6 @@ class ForeignMaterialTracker:
             verbose=False,
             iou=0.5,
             conf=DETECTION_CONFIDENCE,
-            classes=self.debris_class_ids,
-        )
-        seg_results = self.seg_model.predict(
-            frame,
-            verbose=False,
-            conf=SEGMENTATION_CONFIDENCE,
-            classes=self.segmentation_class_ids,
         )
 
         now = time.time()
@@ -508,29 +508,9 @@ class ForeignMaterialTracker:
 
                 detections = self._deduplicate(detections)
 
-        if seg_results:
-            seg_result = seg_results[0]
-            if seg_result.boxes is not None:
-                seg_boxes = seg_result.boxes.xyxy.cpu().tolist()
-                seg_confs = seg_result.boxes.conf.tolist()
-                seg_masks = seg_result.masks.xy if seg_result.masks is not None else []
-
-                for i, (box, conf) in enumerate(zip(seg_boxes, seg_confs)):
-                    x1, y1, x2, y2 = box
-                    mask = seg_masks[i].tolist() if i < len(seg_masks) else []
-                    detections.append(
-                        {
-                            "label": CARROT_LABEL,
-                            "trackId": None,
-                            "confidence": conf,
-                            "boundingBox": {"x1": x1, "y1": y1, "x2": x2, "y2": y2},
-                            "mask": mask,
-                        }
-                    )
-
         annotated_frame = self._annotate_frame(
             frame,
-            detections,
+            detections + tracked_carrots,
             include_carrots=include_carrots_overlay,
         )
         log_events = []
@@ -573,8 +553,8 @@ class ForeignMaterialTracker:
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "cameraId": "test-camera-1",
             "snapshot": snapshot_path,
-            "model": "yolo26n-seg.pt",
-            "detections": detections,
+            "model": "best.pt",
+            "detections": detections + tracked_carrots,
             "shouldLog": len(log_events) > 0,
         }
 
@@ -609,7 +589,7 @@ def infer_image(
 
 
 class LiveCameraProcessor:
-    def __init__(self, camera_index = "rtsp://192.168.1.48:8080", on_event=None):
+    def __init__(self, camera_index="http://192.168.1.48:8080/video", on_event=None):
         self.camera_index = camera_index
         self.on_event = on_event
         self.tracker = ForeignMaterialTracker()
@@ -625,6 +605,7 @@ class LiveCameraProcessor:
             "foreign_objects_per_minute": 0.0,
             "stream_connected": False,
             "last_frame_timestamp": None,
+            "foreign_object_detected": False,
         }
         self.foreign_event_timestamps = deque()
 
@@ -635,9 +616,9 @@ class LiveCameraProcessor:
             self.on_event = on_event
 
     def _open_capture(self):
-        # If camera_index is a string (like an RTSP URL), connect to it
-        # directly -- CAP_DSHOW only applies to local Windows camera
-        # indexes, not network streams, so skip it for RTSP sources.
+        # If camera_index is a string (like an RTSP/HTTP URL), connect to
+        # it directly -- CAP_DSHOW only applies to local Windows camera
+        # indexes, not network streams, so skip it for those sources.
         if isinstance(self.camera_index, str):
             cap = cv2.VideoCapture(self.camera_index)
         else:
@@ -660,6 +641,8 @@ class LiveCameraProcessor:
 
     def _run(self) -> None:
         cap = None
+        frame_skip_counter = 0
+        FRAME_SKIP = 2  # process every 2nd frame; raise to 3 if still laggy
         try:
             cap = self._open_capture()
             while True:
@@ -672,10 +655,18 @@ class LiveCameraProcessor:
                     time.sleep(0.05)
                     continue
 
+                frame_skip_counter += 1
+                if frame_skip_counter % FRAME_SKIP != 0:
+                    continue  # keep reading to stay current, skip inference this frame
+
+                # Downscale before inference -- 640px is plenty for detection
+                h, w = frame.shape[:2]
+                frame = cv2.resize(frame, (640, int(h * 640 / w)))
+
                 event, annotated_frame = self.tracker.process_frame(
                     frame,
                     use_delayed_snapshot=True,
-                    include_carrots_overlay=False,
+                    include_carrots_overlay=True,
                 )
 
                 foreign_event_count = len(
@@ -693,9 +684,17 @@ class LiveCameraProcessor:
                 callback = None
                 with self.lock:
                     callback = self.on_event
-                    self.latest_stats["active_detections"] = len(event.get("detections", []))
+                    current_detections = event.get("detections", [])
+                    self.latest_stats["active_detections"] = len(current_detections)
                     self.latest_stats["last_frame_timestamp"] = now
                     self.latest_stats["stream_connected"] = True
+                    # True only while a foreign object is visible in THIS
+                    # frame -- this is what the driver's red-screen alert
+                    # polls to decide whether to flash the screen red.
+                    self.latest_stats["foreign_object_detected"] = any(
+                        str(det.get("label", "")).lower() != CARROT_LABEL
+                        for det in current_detections
+                    )
                     for _ in range(foreign_event_count):
                         self.foreign_event_timestamps.append(now)
                     while self.foreign_event_timestamps and now - self.foreign_event_timestamps[0] > 60.0:
@@ -723,7 +722,6 @@ class LiveCameraProcessor:
         finally:
             if cap is not None:
                 cap.release()
-
     def get_stats(self):
         self.start()
         with self.lock:
@@ -758,7 +756,7 @@ class LiveCameraProcessor:
             )
 
 
-def _get_live_camera_processor(camera_index = "rtsp://192.168.1.48:8080", on_event=None):
+def _get_live_camera_processor(camera_index="http://192.168.1.48:8080/video", on_event=None):
     global _live_camera_processor
     with _live_camera_processor_lock:
         if _live_camera_processor is None:
@@ -771,16 +769,16 @@ def _get_live_camera_processor(camera_index = "rtsp://192.168.1.48:8080", on_eve
         return _live_camera_processor
 
 
-def continous_feed(camera_index = "rtsp://192.168.1.48:8080", on_event=None):
+def continous_feed(camera_index="http://192.168.1.48:8080/video", on_event=None):
     processor = _get_live_camera_processor(camera_index=camera_index, on_event=on_event)
     yield from processor.stream()
 
 
-def preview_feed(camera_index = "rtsp://192.168.1.48:8080"):
+def preview_feed(camera_index="http://192.168.1.48:8080/video"):
     processor = _get_live_camera_processor(camera_index=camera_index, on_event=None)
     yield from processor.stream()
 
 
-def get_live_feed_stats(camera_index = "rtsp://192.168.1.48:8080", on_event=None):
+def get_live_feed_stats(camera_index="http://192.168.1.48:8080/video", on_event=None):
     processor = _get_live_camera_processor(camera_index=camera_index, on_event=on_event)
     return processor.get_stats()

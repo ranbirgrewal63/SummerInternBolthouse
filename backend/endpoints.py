@@ -45,7 +45,40 @@ c.execute(
     )
     """
 )
+c.execute(
+    """
+    CREATE TABLE IF NOT EXISTS field_codes (
+        j_code TEXT PRIMARY KEY,
+        field_name TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    )
+    """
+)
 con.commit()
+
+_SEASON_FIELD_NAMES = {
+    "J92569": "Merrill 7",
+    "J92570": "RC Farms 1",
+    "J92571": "RC Farms 2",
+    "J92572": "RC Farms 3",
+    "J92576": "Higashi 3",
+    "J92578": "L&J 2",
+    "J92579": "Pedrazzi 1",
+    "J92580": "Pedrazzi 2",
+}
+for _code, _name in _SEASON_FIELD_NAMES.items():
+    c.execute(
+        """
+        INSERT INTO field_codes (j_code, field_name, updated_at)
+        VALUES (?, ?, datetime('now'))
+        ON CONFLICT(j_code) DO UPDATE SET
+            field_name = excluded.field_name,
+            updated_at = excluded.updated_at
+        """,
+        (_code, _name),
+    )
+con.commit()
+ 
 app = FastAPI()
 app.include_router(hardware_router)
 camera_enabled = True
@@ -107,7 +140,99 @@ async def health():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"db_error: {e}")
 
-
+def get_current_field_code() -> str | None:
+    conn, cur = get_cursor()
+    row = cur.execute(
+        "SELECT value FROM system_state WHERE key = ?",
+        ("current_field_code",),
+    ).fetchone()
+    conn.close()
+    return row["value"] if row else None
+ 
+ 
+def set_current_field_code(j_code: str) -> str:
+    c.execute(
+        """
+        INSERT INTO system_state (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+        ("current_field_code", j_code),
+    )
+    con.commit()
+    return j_code
+ 
+ 
+@app.get("/fields")
+async def list_fields():
+    rows = c.execute("SELECT j_code, field_name FROM field_codes ORDER BY j_code").fetchall()
+    return {"fields": [{"j_code": r["j_code"], "field_name": r["field_name"]} for r in rows]}
+ 
+ 
+@app.get("/fields/current")
+async def current_field():
+    j_code = get_current_field_code()
+    if not j_code:
+        return {"j_code": None, "field_name": None}
+    row = c.execute(
+        "SELECT field_name FROM field_codes WHERE j_code = ?", (j_code,)
+    ).fetchone()
+    return {"j_code": j_code, "field_name": row["field_name"] if row else None}
+ 
+ 
+@app.post("/fields/current/{j_code}")
+async def set_current_field(j_code: str):
+    exists = c.execute(
+        "SELECT 1 FROM field_codes WHERE j_code = ?", (j_code,)
+    ).fetchone()
+    if not exists:
+        raise HTTPException(status_code=404, detail=f"Unknown field code: {j_code}")
+    set_current_field_code(j_code)
+    return {"message": "Current field updated.", "j_code": j_code}
+ 
+ 
+@app.get("/db/carrots/by-field")
+async def get_carrots_by_field(start: str, end: str):
+    rows = c.execute(
+        "SELECT * FROM events WHERE timestamp >= ? AND timestamp < ?",
+        (start, end),
+    ).fetchall()
+ 
+    field_names = {
+        r["j_code"]: r["field_name"]
+        for r in c.execute("SELECT j_code, field_name FROM field_codes").fetchall()
+    }
+ 
+    counts: dict[str, int] = {}
+    for row in rows:
+        try:
+            payload = json.loads(row["payload"])
+        except Exception:
+            continue
+ 
+        j_code = payload.get("fieldCode")
+        detections = payload.get("detections", [])
+        carrot_count = sum(
+            1 for det in detections if str(det.get("label", "")).lower() == "carrot"
+        )
+        if carrot_count == 0:
+            continue
+ 
+        key = j_code or "Unassigned"
+        counts[key] = counts.get(key, 0) + carrot_count
+ 
+    result = [
+        {
+            "j_code": j_code,
+            "field_name": field_names.get(j_code, "Unknown"),
+            "carrot_count": count,
+        }
+        for j_code, count in counts.items()
+    ]
+    result.sort(key=lambda x: x["carrot_count"], reverse=True)
+ 
+    return {"data": result}
+ 
 @app.get("/power/state")
 async def power_state():
     return {"enabled": get_system_enabled()}
@@ -207,7 +332,7 @@ def _remove_debris_detection(eventId: str, debris_type: str | None):
         label = det.get("label")
         matches_selected = debris_type is None or label == debris_type
 
-        if not removed and label != "carrot" and matches_selected:
+        if not removed and label.lower() != "carrot" and matches_selected:
             removed = True
             continue
 
@@ -225,7 +350,7 @@ def _remove_debris_detection(eventId: str, debris_type: str | None):
     if not removed:
         raise HTTPException(status_code=404, detail="Debris detection not found")
 
-    has_remaining_debris = any(det.get("label") != "carrot" for det in kept_detections)
+    has_remaining_debris = any(det.get("label").lower() != "carrot" for det in kept_detections)
 
     if kept_detections:
         if not has_remaining_debris:
@@ -406,7 +531,7 @@ async def get_carrots_range(start: str, end: str):
         ts = str(payload.get("timestamp", row["timestamp"])).replace("T", " ")
 
         for det in detections:
-            if det.get("label") == "carrot":
+            if det.get("label").lower() == "carrot":
                 result.append({
                     "id": len(result) + 1,
                     "time_stamp": ts,
@@ -446,7 +571,7 @@ async def get_debris_range(start: str, end: str):
 
         detections = payload.get("detections", [])
         for det in detections:
-            if det.get("label") != "carrot":
+            if det.get("label").lower() != "carrot":
                 result.append({
                     "time_stamp": row["timestamp"],
                     "debris_type": det.get("label"),
@@ -492,5 +617,36 @@ def save_event_if_needed(event: dict, trigger_hardware: bool = False):
         except Exception:
             print("Warning: failed to trigger solenoid for event", event_to_save.get("eventId"))
 
+@app.get("/db/carrots/by-day")
+async def get_carrots_by_day(start: str, end: str):
+    rows = c.execute(
+        "SELECT * FROM events WHERE timestamp >= ? AND timestamp < ?",
+        (start, end),
+    ).fetchall()
+
+    counts_by_day: dict[str, int] = {}
+    for row in rows:
+        try:
+            payload = json.loads(row["payload"])
+        except Exception:
+            continue
+
+        detections = payload.get("detections", [])
+        carrot_count = sum(
+            1 for det in detections if str(det.get("label", "")).lower() == "carrot"
+        )
+        if carrot_count == 0:
+            continue
+
+        day = row["timestamp"][:10]  # Extract YYYY-MM-DD
+        counts_by_day[day] = counts_by_day.get(day, 0) + carrot_count
+
+    result = [
+        {"date": day, "carrot_count": count}
+        for day, count in counts_by_day.items()
+    ]
+    result.sort(key=lambda x: x["date"])
+
+    return {"data": result}
 
 # con.close()

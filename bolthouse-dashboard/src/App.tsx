@@ -9,6 +9,7 @@ import { LoginPage } from "./components/LoginPage";
 import { ForeignObjectAlert } from "./components/ForeignObjectAlert";
 import { AccountManagementPanel } from "./components/AccountManagementPanel";
 import { AccountUser } from "./api/auth";
+import { CarrotsCalendar } from "./components/CarrotsCalendar";
 
 // Master data store - generates consistent data for the past year
 // Kept for DateRangeFilter export functionality
@@ -172,6 +173,7 @@ export default function App() {
                 masterDataStore={masterDataStore}
                 graphData={currentGraphData}
               />
+              <CarrotsCalendar />
             </div>
           </div>
           

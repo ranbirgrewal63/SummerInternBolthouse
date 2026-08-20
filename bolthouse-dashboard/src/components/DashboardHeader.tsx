@@ -8,7 +8,9 @@ import { HardwareConfigModal } from "./HardwareConfigModal";
 import { ModeToggle } from "./mode-toggle";
 import { API_BASE_URL } from "../api/config";
 import { AccountUser } from "../api/auth";
+import { FieldSelector } from "./FieldSelector";
 
+import { CarrotsCalendar } from "./CarrotsCalendar";
 interface DashboardHeaderProps {
   currentDate: string;
   systemStatus: "online" | "offline" | "warning";
@@ -81,7 +83,7 @@ export function DashboardHeader({
           {currentDate}
         </p>
       </div>
-
+  
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg border">
           <Power className={`h-5 w-5 ${systemEnabled ? "text-green-500" : "text-gray-400"}`} />
@@ -109,7 +111,9 @@ export function DashboardHeader({
           <span>Status:</span>
           {getStatusBadge()}
         </div>
-
+        <div className="flex items-center gap-2">
+          <FieldSelector />
+        </div>
         {canUseLiveCameraDebug && <LiveCameraModal systemEnabled={systemEnabled} />}
         <HardwareConfigModal />
         <ModeToggle />
@@ -118,6 +122,7 @@ export function DashboardHeader({
           <LogOut className="h-4 w-4" />
           Logout
         </Button>
+        
       </div>
     </div>
   );
