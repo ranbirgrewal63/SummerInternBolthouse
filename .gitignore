@@ -16,8 +16,8 @@ node_modules/
 *.bak
 *.pth
 *.pt
-!weights2/best.pt
-model/weights_maskrcnn/
+
+
  
 # Roboflow dataset exports (large image/label folders)
 My First Project*/
