@@ -1,10 +1,10 @@
 <div align="center">
 
-# Detecting Foreign Material - Phase 2
+# Detecting Foreign Material - Phase 3
 
 The project is a visual recognition system in order to detct foreign material on a conveyor belt. Other features include:
   -Carrot dimension calculation
-  -# of carrots passed, weight of carrots over unit time
+  -# of carrots passed per day/month/year, weight of carrots over unit time
 
 </div>
 
@@ -17,7 +17,7 @@ The software will be implemented using two cameras about 4 feet above the convey
 
 ### Goals
 
--Detect foreign materials from conveyor belt
+-Detect foreign materials from conveyor belt on a harvester
 -Classify foreign materials from conveyor belt
 -Determine dimensions of carrots that pass (height, width, etc)
 -Analyze and create statistics of carrots (# that pass per unit time, average weight, etc)
