@@ -11,7 +11,7 @@ The project is a visual recognition system in order to detct foreign material on
 
 ## Overview
 
-The software will be implemented using two cameras about 4 feet above the conveyor belt. It uses a yolov11 model for both object detection and dimension calculation. Any foreign material will trigger a solenoid for another mechanism to remove said material. SQLite will be used to capture event data, along with a file path for the corresponding image. 
+The software will be implemented using two cameras about 4 feet above the conveyor belt. It uses a yolov26 model for both object detection and dimension calculation. Any foreign material will trigger a solenoid for another mechanism to remove said material. SQLite will be used to capture event data, along with a file path for the corresponding image. 
 
 
 
